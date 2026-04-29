@@ -1,0 +1,34 @@
+name: Issue LLM Review
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to review
+        required: true
+        type: number
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Review issue with OpenAI
+        env:
+          TARGET_REPOSITORY: CHLee1111/FndTest
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4.1-mini' }}
+          REVIEW_LANGUAGE: ko
+          REVIEW_TRIGGER_LABEL: ${{ vars.REVIEW_TRIGGER_LABEL }}
+          MANUAL_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        run: python .github/scripts/review_issue.py
