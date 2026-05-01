@@ -12,6 +12,12 @@ REVIEW_MARKER = "<!-- llm-issue-review -->"
 def require_env(name):
     value = os.environ.get(name)
     if not value:
+        if name == "OPENAI_API_KEY":
+            repo = os.environ.get("GITHUB_REPOSITORY", "this repository")
+            raise RuntimeError(
+                "Missing OPENAI_API_KEY. Add it as a repository secret at "
+                f"https://github.com/{repo}/settings/secrets/actions."
+            )
         raise RuntimeError(f"Missing required environment variable: {name}")
     return value
 
