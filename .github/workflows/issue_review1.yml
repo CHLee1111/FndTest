@@ -22,6 +22,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Validate OpenAI secret
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error title=Missing OPENAI_API_KEY secret::Add OPENAI_API_KEY in Settings > Secrets and variables > Actions > Repository secrets."
+            exit 1
+          fi
+
       - name: Review issue with OpenAI
         env:
           TARGET_REPOSITORY: CHLee1111/FndTest
