@@ -1,0 +1,61 @@
+name: Release on PR merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-on-pr-merge
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Create version tag and GitHub release
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Create next patch tag
+        id: version
+        run: |
+          git fetch --tags --force
+
+          latest_tag="$(git tag --list 'test/v*.*.*' --sort=-v:refname | head -n 1)"
+
+          if [ -z "$latest_tag" ]; then
+            next_tag="test/v0.0.1"
+          else
+            version="${latest_tag#test/v}"
+            version="${version#.}"
+            major="$(echo "$version" | cut -d. -f1)"
+            minor="$(echo "$version" | cut -d. -f2)"
+            patch="$(echo "$version" | cut -d. -f3)"
+            next_tag="test/v${major}.${minor}.$((patch + 1))"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$next_tag" "$GITHUB_SHA"
+          git push origin "$next_tag"
+
+          echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "$TAG_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG_NAME" \
+            --generate-notes
