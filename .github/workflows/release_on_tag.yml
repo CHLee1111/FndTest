@@ -3,32 +3,34 @@ name: Release
 on:
   push:
     tags:
-      - 'test/v*.*.*'
+      - 'release/v*.*.*'
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: Create GitHub release
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Validate release tag
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          if [[ ! "$TAG_NAME" =~ ^test/v\.?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error title=Invalid release tag::Use test/v0.0.1 or test/v.0.0.1 format."
+          if [[ ! "$TAG_NAME" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $TAG_NAME"
+            echo "Expected format: release/vx.y.z, where x, y, and z are numbers."
             exit 1
           fi
 
-      - name: Create release
+      - name: Create GitHub release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
         run: |
           gh release create "$TAG_NAME" \
-            --repo "$GITHUB_REPOSITORY" \
             --title "$TAG_NAME" \
             --generate-notes
