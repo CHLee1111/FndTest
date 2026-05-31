@@ -21,34 +21,39 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Create next patch tag
+      - name: Get release tag from branch
         id: version
+        env:
+          RELEASE_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [[ ! "$RELEASE_BRANCH" =~ ^release/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release branch: $RELEASE_BRANCH"
+            echo "Expected format: release/vx.y.z, where x, y, and z are numbers."
+            exit 1
+          fi
+
+          echo "tag=$RELEASE_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Create release tag
+        env:
+          TAG_NAME: ${{ steps.version.outputs.tag }}
+          RELEASE_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           git fetch --tags --force
 
-          latest_tag="$(git tag --list 'test/v*.*.*' --sort=-v:refname | head -n 1)"
-
-          if [ -z "$latest_tag" ]; then
-            next_tag="test/v0.0.1"
-          else
-            version="${latest_tag#test/v}"
-            version="${version#.}"
-            major="$(echo "$version" | cut -d. -f1)"
-            minor="$(echo "$version" | cut -d. -f2)"
-            patch="$(echo "$version" | cut -d. -f3)"
-            next_tag="test/v${major}.${minor}.$((patch + 1))"
+          if git rev-parse "refs/tags/$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag already exists: $TAG_NAME"
+            exit 1
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "$next_tag" "$GITHUB_SHA"
-          git push origin "$next_tag"
-
-          echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+          git tag "$TAG_NAME" "${RELEASE_COMMIT:-$GITHUB_SHA}"
+          git push origin "$TAG_NAME"
 
       - name: Create release
         env:
